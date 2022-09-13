@@ -18,5 +18,13 @@
     <ClCompile Include="HTTP_Parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="HTTP.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="HTTP.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
