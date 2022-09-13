@@ -5,11 +5,15 @@
 
 class HTTP
 {
+private:
+    using TypeName = std::string;
+    using HeaderName = std::string;
+    using HeaderValue = std::string;
+
 public:
     HTTP(const std::string& sRequest);
     virtual ~HTTP() {};
 
-protected:
     enum class HTTP_TYPES
     {
         GET = 0,
@@ -24,16 +28,26 @@ protected:
         Host = 0,
         UserAgent,
         Accept,
-        Connection
+        AcceptCharset,
+        AcceptEncoding,
+        AcceptLanguage,
+        Connection,
+        ContentType,
+        ContentLength,
+        Authorization,
+        From
     };
 
     std::optional<HTTP_TYPES> GetType() const { return m_Type; }
     std::optional<std::string> GetURL() const { return m_URL; }
 
-    std::optional<std::string> GetHeaderValue(std::string& sHeader) const;
+    std::optional<std::string> GetHeaderValue(std::string sHeader) const;
     std::optional<std::string> GetHeaderValue(HTTP_HEADERS header) const;
 
 private:
+    void InitTypes();
+    void InitHeaders();
+
     bool ParseTypeAndURL(std::string_view str_view);
     bool ParseHeadersValues(std::string_view str_view);
 
@@ -41,39 +55,19 @@ private:
     size_t FindCaseInsensitive(std::string data, std::string toSearch, size_t pos = 0);
 
 private:
-    using TypeName = std::string;
-    using HeaderName = std::string;
-    using HeaderValue = std::string;
-
     std::optional<HTTP_TYPES> m_Type;
     std::optional<std::string> m_URL;
 
     std::map<TypeName, HTTP_TYPES> m_Types;
-    std::map<HeaderName, HTTP_HEADERS> m_Headers;
+    std::map<HeaderName, HTTP_HEADERS> m_HeadersName;
     
     std::map<HTTP_HEADERS, HeaderValue> m_HeadersValue;
 };
 
 HTTP::HTTP(const std::string& sRequest)
 {
-    m_Types =
-    {
-        { "GET",        HTTP_TYPES::GET     },
-        { "POST",       HTTP_TYPES::POST    },
-        { "CONNECT",    HTTP_TYPES::CONNECT },
-        { "PUT",        HTTP_TYPES::PUT     },
-        { "HEAD",       HTTP_TYPES::HEAD    }
-    };
-
-    m_Headers = 
-    {
-        { "host",           HTTP_HEADERS::Host          },
-        { "user-agent",     HTTP_HEADERS::UserAgent     },
-        { "accept",         HTTP_HEADERS::Accept        },
-        { "connection",     HTTP_HEADERS::Connection    },
-
-        /*added more*/
-    };
+    InitTypes();
+    InitHeaders();
 
     bool bTypeUrlExist = false;
     std::string_view str_view;
@@ -105,15 +99,15 @@ HTTP::HTTP(const std::string& sRequest)
     }
 }
 
-std::optional<std::string> HTTP::GetHeaderValue(std::string& sHeader) const
+std::optional<std::string> HTTP::GetHeaderValue(std::string sHeader) const
 {
     if (sHeader.empty())
         return {};
 
     std::transform(sHeader.begin(), sHeader.end(), sHeader.begin(), tolower);
 
-    auto it = m_Headers.find(sHeader);
-    if (it == m_Headers.end())
+    auto it = m_HeadersName.find(sHeader);
+    if (it == m_HeadersName.end())
         return {};
 
     return GetHeaderValue(it->second);
@@ -125,7 +119,37 @@ std::optional<std::string> HTTP::GetHeaderValue(HTTP_HEADERS header) const
     if (it == m_HeadersValue.end())
         return {};
 
-    return { it->second }; // TODO: check return it->second without {}
+    return it->second;
+}
+
+void HTTP::InitTypes()
+{
+    m_Types =
+    {
+        { "GET",        HTTP_TYPES::GET     },
+        { "POST",       HTTP_TYPES::POST    },
+        { "CONNECT",    HTTP_TYPES::CONNECT },
+        { "PUT",        HTTP_TYPES::PUT     },
+        { "HEAD",       HTTP_TYPES::HEAD    }
+    };
+}
+
+void HTTP::InitHeaders()
+{
+    m_HeadersName =
+    {
+        { "host",               HTTP_HEADERS::Host              },
+        { "user-agent",         HTTP_HEADERS::UserAgent         },
+        { "accept",             HTTP_HEADERS::Accept            },
+        { "accept-charset",     HTTP_HEADERS::AcceptCharset     },
+        { "accept-encoding",    HTTP_HEADERS::AcceptEncoding    },
+        { "accept-language",    HTTP_HEADERS::AcceptLanguage    },
+        { "connection",         HTTP_HEADERS::Connection        },
+        { "content-type",       HTTP_HEADERS::ContentType       },
+        { "content-length",     HTTP_HEADERS::ContentLength     },
+        { "authorization",      HTTP_HEADERS::Authorization     },
+        { "from",               HTTP_HEADERS::From              },
+    };
 }
 
 bool HTTP::ParseTypeAndURL(std::string_view str_view)
@@ -148,7 +172,7 @@ bool HTTP::ParseTypeAndURL(std::string_view str_view)
     if (!m_Type)
         return false;
 
-    m_URL = str_view.substr(spacePos + 2, str_view.size() - spacePos - 1);
+    m_URL = str_view.substr(spacePos + 1, str_view.size() - spacePos);
 
     if (!m_URL)
         return false;
@@ -163,7 +187,7 @@ bool HTTP::ParseHeadersValues(std::string_view str_view)
         return false;
 
     auto sHeader = str_view.substr(0, colonPos);
-    for (const auto& header : m_Headers)
+    for (const auto& header : m_HeadersName)
     {
         if (CompareCaseInsensitive(header.first, std::string{ sHeader }))
         {
@@ -193,13 +217,57 @@ size_t HTTP::FindCaseInsensitive(std::string data, std::string toSearch, size_t 
 
 int main()
 {
-    std::string sRequest =
+    // HTTP request 1
+    std::string sRequest1 =
         "GET /wiki/http HTTP/1.1\n"
         "Host: ru.wikipedia.org\n"
         "User-Agent: Mozilla/5.0 (X11; U; Linux i686; ru; rv:1.9b5) Gecko/2008050509 Firefox/3.0b5\n"
         "Accept: text/html\n"
         "Connection: close";
 
-    HTTP httpRequest(sRequest);
+    HTTP httpRequest1(sRequest1);
+
+    auto type1 = httpRequest1.GetType();
+    auto URL1 = httpRequest1.GetURL();
+    auto headerValue1_1 = httpRequest1.GetHeaderValue(HTTP::HTTP_HEADERS::Accept);
+    auto headerValue1_2 = httpRequest1.GetHeaderValue("Host");
+    auto headerValue1_3 = httpRequest1.GetHeaderValue("Host1");    // nullopt
+
+
+    // HTTP request 2
+    std::string sRequest2 =
+        "GET /hello.htm HTTP/1.1\n"
+        "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n"
+        "Host: www.example.com\n"
+        "Accept-Language: ru-ru\n"
+        "Accept-Encoding: gzip, deflate\n"
+        "Connection: Keep-Alive\n";
+
+    HTTP httpRequest2(sRequest2);
+
+    auto type2 = httpRequest2.GetType();
+    auto URL2 = httpRequest2.GetURL();
+    auto headerValue2_1 = httpRequest2.GetHeaderValue(HTTP::HTTP_HEADERS::AcceptEncoding);
+    auto headerValue2_2 = httpRequest2.GetHeaderValue("Accept-Language");
+    auto headerValue2_3 = httpRequest2.GetHeaderValue("ACCEPT-Language");
+
+
+    // HTTP request 3
+    std::string sRequest3 =
+        "POST /cgi-bin/process.cgi HTTP/1.1\n"
+        "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n"
+        "Host: www.example.com\n"
+        "Content-Type: application/x-www-form-urlencoded\n"
+        "Content-Length: length\n"
+        "Accept-Language: ru-ru\n"
+        "Accept-Encoding: gzip, deflate\n"
+        "Connection: Keep-Alive\n";
+ 
+    HTTP httpRequest3(sRequest3);
+
+    auto type3 = httpRequest3.GetType();
+    auto URL3 = httpRequest3.GetURL();
+    auto headerValue3_1 = httpRequest3.GetHeaderValue(HTTP::HTTP_HEADERS::ContentType);
+    auto headerValue3_2 = httpRequest3.GetHeaderValue("Content-Type");
 }
 
