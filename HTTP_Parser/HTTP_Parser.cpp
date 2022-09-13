@@ -34,16 +34,24 @@ protected:
     std::optional<std::string> GetHeaderValue(HTTP_HEADERS header) const;
 
 private:
+    bool ParseTypeAndURL(std::string_view str_view);
+    bool ParseHeadersValues(std::string_view str_view);
+
+    bool CompareCaseInsensitive(std::string str1, std::string str2);
     size_t FindCaseInsensitive(std::string data, std::string toSearch, size_t pos = 0);
 
 private:
+    using TypeName = std::string;
+    using HeaderName = std::string;
+    using HeaderValue = std::string;
+
     std::optional<HTTP_TYPES> m_Type;
     std::optional<std::string> m_URL;
 
-    std::map<std::string, HTTP_TYPES> m_Types;
-    std::map<std::string, HTTP_HEADERS> m_Headers;
+    std::map<TypeName, HTTP_TYPES> m_Types;
+    std::map<HeaderName, HTTP_HEADERS> m_Headers;
     
-    std::map<HTTP_HEADERS, std::string> m_HeadersValue;
+    std::map<HTTP_HEADERS, HeaderValue> m_HeadersValue;
 };
 
 HTTP::HTTP(const std::string& sRequest)
@@ -70,49 +78,21 @@ HTTP::HTTP(const std::string& sRequest)
     bool bTypeUrlExist = false;
     std::string_view str_view;
 
-    // parse
     size_t startPos = 0;
     auto endPos = sRequest.find_first_of('\n');
 
+    // parse line by line
     while (endPos != std::string::npos && startPos < endPos)
     {
 		str_view = std::string_view(sRequest).substr(startPos, endPos - startPos);
 
         if (!bTypeUrlExist)
         {
-            // find Type and URL
-            for (const auto& type : m_Types)
-            {
-                auto typePos = FindCaseInsensitive(std::string{ str_view }, type.first);
-                if (typePos == std::string::npos)
-                    continue;
-
-                m_Type = type.second;
-                // else Error
-
-                size_t charsOffset = type.first.length();
-                // need to check exception
-                m_URL = str_view.substr(charsOffset + 1, str_view.length() - charsOffset);
-
-                bTypeUrlExist = true;
-                break;
-            }
+            bTypeUrlExist = ParseTypeAndURL(str_view);
         }
         else
         {
-            for (const auto& header : m_Headers)
-            {
-
-                // maybe need copy string from start line to ':' and find this string in map
-                auto headerPos = FindCaseInsensitive(std::string{ str_view }, header.first);
-                if (headerPos == std::string::npos)
-                    continue;
-
-                size_t charsOffset = header.first.length() + 1; // + ':'
-                m_HeadersValue[header.second] = str_view.substr(charsOffset + 1, str_view.length() - charsOffset);
-
-                break;
-            }
+            ParseHeadersValues(str_view);
         }
 
         str_view = std::string_view(sRequest).substr(endPos + 1, sRequest.length() - endPos);
@@ -146,6 +126,61 @@ std::optional<std::string> HTTP::GetHeaderValue(HTTP_HEADERS header) const
         return {};
 
     return { it->second }; // TODO: check return it->second without {}
+}
+
+bool HTTP::ParseTypeAndURL(std::string_view str_view)
+{
+    auto spacePos = str_view.find_first_of(' ');
+    if (spacePos == std::string::npos)
+        return false;
+
+    auto sType = str_view.substr(0, spacePos);
+    
+    for (const auto& type : m_Types)
+    {
+        if (CompareCaseInsensitive(type.first, std::string{ sType }))
+        {
+            m_Type = type.second;
+            break;
+        }
+    }
+
+    if (!m_Type)
+        return false;
+
+    m_URL = str_view.substr(spacePos + 2, str_view.size() - spacePos - 1);
+
+    if (!m_URL)
+        return false;
+
+    return true;
+}
+
+bool HTTP::ParseHeadersValues(std::string_view str_view)
+{
+    auto colonPos = str_view.find_first_of(':');
+    if (colonPos == std::string::npos)
+        return false;
+
+    auto sHeader = str_view.substr(0, colonPos);
+    for (const auto& header : m_Headers)
+    {
+        if (CompareCaseInsensitive(header.first, std::string{ sHeader }))
+        {
+            m_HeadersValue[header.second] = str_view.substr(colonPos + 2, str_view.length() - colonPos - 1);
+            break;
+        }
+    }
+
+    return true;
+}
+
+bool HTTP::CompareCaseInsensitive(std::string str1, std::string str2)
+{
+    std::transform(str1.begin(), str1.end(), str1.begin(), ::tolower);
+    std::transform(str2.begin(), str2.end(), str2.begin(), ::tolower);
+
+    return str1 == str2;
 }
 
 size_t HTTP::FindCaseInsensitive(std::string data, std::string toSearch, size_t pos)
