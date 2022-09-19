@@ -1,56 +1,25 @@
 #include "HTTP.h"
 
 #include <algorithm>
+#include <sstream>
 
 
-HTTP::HTTP(const std::istream& stream)
+HTTP::HTTP()
 {
     InitTypes();
     InitHeaders();
-
-    Parse(stream);
 }
 
 bool HTTP::LoadFromFile(const std::string& fileName)
 {
-    bool bResult = true;
-    std::ifstream inputFile(fileName);
-
-    for (std::string line; std::getline(inputFile, line); )
-    {
-        if (!ParseLine(line))
-            bResult = false; // something went wrong
-    }
-
-    return bResult;
+    std::ifstream fileStream(fileName);
+    return Parse(fileStream);
 }
 
-bool HTTP::LoadLineByLine(std::string_view sRequest)
+bool HTTP::LoadFromString(const std::string& sRequest)
 {
-    bool bResult = true;
-
-    size_t startPos = 0;
-    auto endPos = sRequest.find_first_of('\n');
-    std::string_view str_view;
-
-    // parse line by line
-    while (endPos != std::string::npos && startPos < endPos)
-    {
-        str_view = sRequest.substr(startPos, endPos - startPos);
-
-        if (!ParseLine(str_view))
-            bResult = false;  // something went wrong
-
-        str_view = sRequest.substr(endPos + 1, sRequest.length() - endPos);
-        startPos = endPos + 1;
-
-        if (auto nextEndPos = str_view.find_first_of('\n'); nextEndPos != std::string::npos)
-            endPos += nextEndPos + 1;
-        else
-            endPos = str_view.empty() ? std::string::npos : sRequest.size() - 1;
-    }
-
-    return bResult;
+    std::istringstream stringStream(sRequest);
+    return Parse(stringStream);
 }
 
 std::optional<std::string> HTTP::GetHeaderValue(std::string sHeader) const
@@ -104,6 +73,40 @@ void HTTP::InitHeaders()
         { "authorization",      HTTP_HEADERS::Authorization     },
         { "from",               HTTP_HEADERS::From              },
     };
+}
+
+bool HTTP::Parse(std::istream& stream)
+{
+    if (stream.fail())
+        return false;
+
+    bool bResult = true;
+
+    /* for text with '\n' symbols
+    * example:
+    *       POST /cgi-bin/process.cgi HTTP/1.1\n
+    *       User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n
+    *       Host: www.example.com\n
+    *       Content-Type: application/x-www-form-urlencoded\n
+    */
+    std::string line;
+    while (std::getline(stream, line).good() && !line.empty())
+    {
+        if (!ParseLine(line))
+            bResult = false;
+    }
+
+    /* for single lines without '\n'
+    * example:
+    *       Connection: Keep-Alive
+    */
+    if (!line.empty())
+    {
+        if (!ParseLine(line))
+            bResult = false;
+    }
+
+    return bResult;
 }
 
 bool HTTP::ParseLine(std::string_view line)
@@ -166,12 +169,4 @@ bool HTTP::CompareCaseInsensitive(std::string str1, std::string str2)
     std::transform(str2.begin(), str2.end(), str2.begin(), ::tolower);
 
     return str1 == str2;
-}
-
-size_t HTTP::FindCaseInsensitive(std::string data, std::string toSearch, size_t pos)
-{
-    std::transform(data.begin(), data.end(), data.begin(), ::tolower);
-    std::transform(toSearch.begin(), toSearch.end(), toSearch.begin(), ::tolower);
-
-    return data.find(toSearch, pos);
 }

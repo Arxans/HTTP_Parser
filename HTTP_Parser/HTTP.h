@@ -13,13 +13,11 @@ private:
     using HeaderValue = std::string;
 
 public:
-    HTTP(const std::istream& stream);
+    HTTP();
     virtual ~HTTP() {};
 
     bool LoadFromFile(const std::string& fileName);
-    bool LoadLineByLine(std::string_view sRequest);
-
-    bool Parse(const std::istream& stream);
+    bool LoadFromString(const std::string& sRequest);
 
     enum class HTTP_TYPES
     {
@@ -55,12 +53,13 @@ private:
     void InitTypes();
     void InitHeaders();
 
+    bool Parse(std::istream& stream);
+
     bool ParseLine(std::string_view line);
     bool ParseTypeAndURL(std::string_view str_view);
     bool ParseHeadersValues(std::string_view str_view);
 
     bool CompareCaseInsensitive(std::string str1, std::string str2);
-    size_t FindCaseInsensitive(std::string data, std::string toSearch, size_t pos = 0);
 
 private:
     std::optional<HTTP_TYPES> m_Type;
