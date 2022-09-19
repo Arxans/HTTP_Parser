@@ -3,32 +3,45 @@
 #include <algorithm>
 
 
-HTTP::HTTP(const std::string& sRequest)
+HTTP::HTTP(const std::istream& stream)
 {
     InitTypes();
     InitHeaders();
 
-    bool bTypeUrlExist = false;
-    std::string_view str_view;
+    Parse(stream);
+}
+
+bool HTTP::LoadFromFile(const std::string& fileName)
+{
+    bool bResult = true;
+    std::ifstream inputFile(fileName);
+
+    for (std::string line; std::getline(inputFile, line); )
+    {
+        if (!ParseLine(line))
+            bResult = false; // something went wrong
+    }
+
+    return bResult;
+}
+
+bool HTTP::LoadLineByLine(std::string_view sRequest)
+{
+    bool bResult = true;
 
     size_t startPos = 0;
     auto endPos = sRequest.find_first_of('\n');
+    std::string_view str_view;
 
     // parse line by line
     while (endPos != std::string::npos && startPos < endPos)
     {
-		str_view = std::string_view(sRequest).substr(startPos, endPos - startPos);
+        str_view = sRequest.substr(startPos, endPos - startPos);
 
-        if (!bTypeUrlExist)
-        {
-            bTypeUrlExist = ParseTypeAndURL(str_view);
-        }
-        else
-        {
-            ParseHeadersValues(str_view);
-        }
+        if (!ParseLine(str_view))
+            bResult = false;  // something went wrong
 
-        str_view = std::string_view(sRequest).substr(endPos + 1, sRequest.length() - endPos);
+        str_view = sRequest.substr(endPos + 1, sRequest.length() - endPos);
         startPos = endPos + 1;
 
         if (auto nextEndPos = str_view.find_first_of('\n'); nextEndPos != std::string::npos)
@@ -36,6 +49,8 @@ HTTP::HTTP(const std::string& sRequest)
         else
             endPos = str_view.empty() ? std::string::npos : sRequest.size() - 1;
     }
+
+    return bResult;
 }
 
 std::optional<std::string> HTTP::GetHeaderValue(std::string sHeader) const
@@ -89,6 +104,13 @@ void HTTP::InitHeaders()
         { "authorization",      HTTP_HEADERS::Authorization     },
         { "from",               HTTP_HEADERS::From              },
     };
+}
+
+bool HTTP::ParseLine(std::string_view line)
+{
+    return (!m_Type || !m_URL) 
+        ? ParseTypeAndURL(line) 
+        : ParseHeadersValues(line);
 }
 
 bool HTTP::ParseTypeAndURL(std::string_view str_view)

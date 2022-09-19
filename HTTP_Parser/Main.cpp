@@ -1,7 +1,73 @@
 #include "HTTP.h"
+#include <iostream>
+#include <fstream>
 
-int main()
+
+int main(int argc, char** argv)
 {
+    HTTP httpRequest0;
+    if (argc == 2)
+    {
+        httpRequest0.LoadFromFile(argv[1]);
+    }
+    else
+    {
+        for (std::string line; std::getline(std::cin, line);)
+        {
+            if (line.empty())
+                break;
+
+            line += '\n';
+            httpRequest0.LoadFromString(line);
+        }
+    }
+    // нужно придумать как лучше всего парсить . разносить одиночную строку или текстом пихать.
+
+    auto type0 = httpRequest0.GetType();
+    auto URL0 = httpRequest0.GetURL();
+    auto headerValue0_1 = httpRequest0.GetHeaderValue(HTTP::HTTP_HEADERS::Accept);
+    auto headerValue0_2 = httpRequest0.GetHeaderValue("Host");
+
+    /*if (argc == 1)
+    {
+        httpRequest0.LoadLineByLine()
+    }
+    {
+        httpRequest0.LoadFromFile(argv[1]);
+    }*/
+    /*else
+    {
+        for (int i = 0; i < argc; ++i)
+            httpRequest0.LoadLineByLine(argv[i]);
+    }*/
+    /*if (argc == 2) {
+        std::ifstream inputFile{ argv[1] };
+
+        for (std::string line; std::getline(inputFile, line); )
+        {
+            httpRequest0.ParseLine(line);
+        }
+
+        if (!ifs.is_open())
+        {
+            std::cout << "file is not opened!";
+            return -1;
+        }
+        std::cout << "file is opened" << std::endl;
+        std::cout << "file potoc";
+    }
+    else {
+        for (std::string s; std::getline(std::cin, s, '\n');) 
+        {
+            if (s.empty()) 
+                break;
+
+            std::cout << "name: \"" << s << "\"\n";
+        }
+
+        std::cout << "standart potoc";
+    }*/
+
     // HTTP request 1
     std::string sRequest1 =
         "GET /wiki/http HTTP/1.1\n"
@@ -10,7 +76,8 @@ int main()
         "Accept: text/html\n"
         "Connection: close";
 
-    HTTP httpRequest1(sRequest1);
+    HTTP httpRequest1;
+    httpRequest1.LoadFromString(sRequest1);
 
     auto type1 = httpRequest1.GetType();
     auto URL1 = httpRequest1.GetURL();
@@ -28,7 +95,8 @@ int main()
         "Accept-Encoding: gzip, deflate\n"
         "Connection: Keep-Alive\n";
 
-    HTTP httpRequest2(sRequest2);
+    HTTP httpRequest2;
+    httpRequest2.LoadFromString(sRequest2);
 
     auto type2 = httpRequest2.GetType();
     auto URL2 = httpRequest2.GetURL();
@@ -48,7 +116,8 @@ int main()
         "Accept-Encoding: gzip, deflate\n"
         "Connection: Keep-Alive\n";
  
-    HTTP httpRequest3(sRequest3);
+    HTTP httpRequest3;
+    httpRequest3.LoadFromString(sRequest3);
 
     auto type3 = httpRequest3.GetType();
     auto URL3 = httpRequest3.GetURL();

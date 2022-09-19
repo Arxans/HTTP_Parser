@@ -3,6 +3,7 @@
 #include <string>
 #include <optional>
 #include <map>
+#include <fstream>
 
 class HTTP
 {
@@ -12,8 +13,13 @@ private:
     using HeaderValue = std::string;
 
 public:
-    HTTP(const std::string& sRequest);
+    HTTP(const std::istream& stream);
     virtual ~HTTP() {};
+
+    bool LoadFromFile(const std::string& fileName);
+    bool LoadLineByLine(std::string_view sRequest);
+
+    bool Parse(const std::istream& stream);
 
     enum class HTTP_TYPES
     {
@@ -49,6 +55,7 @@ private:
     void InitTypes();
     void InitHeaders();
 
+    bool ParseLine(std::string_view line);
     bool ParseTypeAndURL(std::string_view str_view);
     bool ParseHeadersValues(std::string_view str_view);
 
@@ -64,4 +71,3 @@ private:
     
     std::map<HTTP_HEADERS, HeaderValue> m_HeadersValue;
 };
-
